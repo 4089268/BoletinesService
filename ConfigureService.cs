@@ -3,11 +3,15 @@ using System.Collections.Specialized;
 using System.Configuration;
 using System.Reflection;
 using Autofac;
+using Autofac.Configuration;
 using Autofac.Extras.Quartz;
+using BoletinesService.Data;
 using log4net;
 using log4net.Appender;
 using log4net.Config;
 using log4net.Layout;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Topshelf;
 using Topshelf.Autofac;
 
@@ -17,6 +21,14 @@ public class ConfigureService
 {
     internal static void Configure()
     {
+        // Build configuration
+        IConfiguration configuration = new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory()) // Set base path
+            .AddJsonFile("appsettings.json")
+            .Build(); // Load JSON file
+
+        Console.WriteLine(">> " + configuration.GetConnectionString("SICEM"));
+            
         // Get log settings
         string logFilePath = "logs/app.log";
         string maxFileSize = "10MB";
@@ -24,15 +36,14 @@ public class ConfigureService
         string logLevel = "ALL";
         ConfigureLog4Net(logFilePath, maxFileSize, maxRollBackups, logLevel);
 
-
         // * configure services for dependancy injection
-        ContainerBuilder containerBuilder = new ContainerBuilder();
-        containerBuilder.RegisterType<BoletinService>().AsSelf().InstancePerLifetimeScope();
-
-        containerBuilder.RegisterModule(new QuartzAutofacFactoryModule());
-        containerBuilder.RegisterModule(new QuartzAutofacJobsModule(Assembly.GetExecutingAssembly()));
-        IContainer container = containerBuilder.Build();
-
+        ContainerBuilder cb = new ContainerBuilder();
+        cb.RegisterModule(new ConfigurationModule(configuration));
+        cb.RegisterModule(new QuartzAutofacFactoryModule());
+        cb.RegisterModule(new QuartzAutofacJobsModule( typeof (BoletinService).Assembly));
+        cb.RegisterType<BoletinService>().AsSelf().InstancePerLifetimeScope();
+        cb.RegisterType<SicemContext>().AsSelf().InstancePerLifetimeScope();
+        
         // * configure the windows service
         HostFactory.Run(conf => {
             conf.RunAsLocalService();
@@ -40,7 +51,7 @@ public class ConfigureService
             conf.SetDisplayName("BoletinService");
             conf.SetDescription("Servicio para enviar boletines generados desde SICEM");
             conf.UseLog4Net();
-            conf.UseAutofacContainer(container);
+            conf.UseAutofacContainer(cb.Build());
             conf.StartAutomatically();
 
             conf.Service<BoletinService>(sv => {

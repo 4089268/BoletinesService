@@ -22,7 +22,7 @@ public class BoletinService
         // * Create a trigger that fires on a cron schedule (every 30 minutes in this example)
         ITrigger trigger1 = TriggerBuilder.Create()
             .WithIdentity(typeof(LogJob).Name + "Trigger", SchedulerConstants.DefaultGroup)
-            .WithCronSchedule("0/2 * * * * ?")
+            .WithCronSchedule("0/5 * * * * ?")
             .ForJob(job1)
             .Build();
 

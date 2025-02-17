@@ -9,21 +9,28 @@ using System.Threading.Tasks;
 using System.Configuration;
 using Quartz;
 using log4net;
+using Microsoft.Extensions.Configuration;
+using BoletinesService.Data;
 
 namespace BoletinesService.Jobs;
 
 internal class LogJob : IJob
 {
-
     private readonly ILog log;
-    public LogJob()
+    private readonly SicemContext sicemContext;
+    public LogJob(SicemContext context)
     {
         log = LogManager.GetLogger(typeof(LogJob));
+        this.sicemContext = context;
     }
 
     public async Task Execute(IJobExecutionContext context)
     {
-        log.Info("Hola mundo");
+        var boletin = sicemContext.OprBoletins.ToList();
+        foreach(var b in boletin)
+        {
+            log.Info($"Boletin: {b.Titulo}  {b.CreatedAt}");
+        }
         await Task.CompletedTask;
     }
 }
